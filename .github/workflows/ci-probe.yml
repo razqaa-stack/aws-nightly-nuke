@@ -1,0 +1,25 @@
+name: ci-probe
+on:
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::234656776442:role/brd-sndbx-ue1-core-admins
+          aws-region: us-east-1
+          role-skip-session-tagging: true
+      - name: probe
+        run: |
+          set -x
+          aws sts get-caller-identity
+          aws ec2 describe-instance-types --filters "Name=gpu-info.gpus.name,Values=g5.*" --query "InstanceTypes[].InstanceType" --output text
+          SUBNET=$(aws ec2 describe-subnets --query "Subnets[?MapPublicIpOnLaunch==\`true\`]|[0].SubnetId" --output text)
+          echo "SUBNET=$SUBNET"
+          AMI=$(aws ec2 describe-images --owners amazon --filters "Name=name,Values=Deep Learning OSS Nvidia Driver AMI GPU PyTorch*" "Name=state,Values=available" --query "Images|sort_by(@,&CreationDate)[-1].ImageId" --output text)
+          echo "AMI=$AMI"
+          aws ec2 describe-instance-type-offerings --location-type availability-zone --filters "Name=instance-type,Values=g5.2xlarge" --query "InstanceTypeOfferings[].Location" --output text
